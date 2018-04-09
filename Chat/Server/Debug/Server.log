@@ -1,2 +1,1 @@
-﻿  main.cpp
-  Server.vcxproj -> C:\Users\miquel.galiana\Downloads\IngSoftRepo\NetworkExercise\Chat\Debug\Server.exe
+﻿C:\Users\miquel.galiana\Downloads\IngSoftRepo\NetworkExercise\Chat\Server\Server.vcxproj : error MSB4057: The target "Deploy" does not exist in the project.
