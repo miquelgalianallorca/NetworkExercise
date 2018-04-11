@@ -15,10 +15,11 @@ using namespace std;
 // CLIENT ============================================================================
 
 void * listenToServer(void* argument) {
-	SOCKET fdSocket = *((SOCKET*)argument);
+	SOCKET * fdSocket = (SOCKET*)argument;
 	while (true) {
 
 	}
+	delete fdSocket;
 	return nullptr;
 }
 
@@ -82,8 +83,8 @@ int main(int argc, char *argv[])
 		} while (totalSend < length);
 
 		//Connect user
-		//pthread_t listenThread;
-		//pthread_create(&listenThread, nullptr, listenToServer, &sockfd);
+		pthread_t listenThread;
+		pthread_create(&listenThread, nullptr, listenToServer, new SOCKET(sockfd));
 
 		bool isConnected = true;
 		while (isConnected) {

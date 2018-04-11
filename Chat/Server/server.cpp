@@ -2,41 +2,58 @@
 
 #define HAVE_STRUCT_TIMESPEC
 #include <pthread.h>
+#include <algorithm>
 
 #define SERVER_PORT 12345
 #define BUF_SIZE 4096
 #define QUEUE_SIZE 10
 
+using std::cout;
+using std::endl;
+
 void * listenToClient(void * argument) {
 	ConnectionData *connectionData = (ConnectionData*) argument;
-	while (true) {
+	bool isClientListening = true;
+	while (isClientListening) {
 		char buf[BUF_SIZE];
 		// Recv: Receive data from connection
 		int totalRecv = 0;
 		do {
 			int rec = recv(connectionData->socket, buf + totalRecv, BUF_SIZE, 0);
 			if (rec == SOCKET_ERROR) {
-				printf("Lost connection to client.\n");
+				cout << connectionData->nick << " left the room." << endl;
+				isClientListening = false;
 				break;
 			}
-			totalRecv += rec;
-			printf("rec:%d | totalRecv: %d\n", rec, totalRecv);
+			else {
+				totalRecv += rec;
+				//printf("rec:%d | totalRecv: %d\n", rec, totalRecv);
+			}
 		} while (buf[totalRecv - 1] != '\0');
 
-		// Client message
+		if (!isClientListening) break;
+
+		// Client Message
 		if (strcmp(buf, "q") == 0) {
-			printf("Client quitted.\n");
+			cout << connectionData->nick << " left the room." << endl;
+			connectionData->server->SendMessageToClients(connectionData->nick, buf);
+			isClientListening = false;
 			break;
 		}
 		else {
 			char ipClient[INET_ADDRSTRLEN];
 			sockaddr_in client = connectionData->server->GetClient();
 			inet_ntop(AF_INET, &client.sin_addr, ipClient, sizeof(ipClient));
-			printf("Client:%s Port:%d\n", ipClient, ntohs(client.sin_port));
-			printf("Message Length: %d\n", totalRecv);
-			printf("Message: %s\n", buf);
+			//printf("Client:%s Port:%d\n", ipClient, ntohs(client.sin_port));
+			//printf("Message Length: %d\n", totalRecv);
+			//printf("Message: %s\n", buf);
+			cout << connectionData->nick << ":> " << buf << endl;
+			connectionData->server->SendMessageToClients(connectionData->nick, buf);
 		}
 	}
+
+	
+	connectionData->server->RemoveClient(connectionData->socket);	
 	closesocket(connectionData->socket);
 	delete connectionData;
 	return nullptr;
@@ -99,20 +116,46 @@ void Server::LoopServer() {
 				int rec = recv(socketIDClient, buf + totalRecv, BUF_SIZE, 0);
 				if (rec == SOCKET_ERROR) {
 					printf("Lost connection to client.\n");
-					break;
 				}
-				totalRecv += rec;
-				printf("rec:%d | totalRecv: %d\n", rec, totalRecv);
+				else {
+					totalRecv += rec;
+					printf("rec:%d | totalRecv: %d\n", rec, totalRecv);
+				}
 			} while (buf[totalRecv - 1] != '\0');
-			printf("%s entered the room.\n", buf);
+			cout << buf << " entered the room." << endl;
 
 			// Add client
+			pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+			//------------------------------------------------------------------------
+			pthread_mutex_lock(&mutex);
 			clients.push_back(ServerClient(buf, socketIDClient));
 			pthread_t listenThread;
-			ConnectionData *connectionData = new ConnectionData(this, socketIDClient);
+			ConnectionData *connectionData = new ConnectionData(this, socketIDClient, buf);
 			pthread_create(&listenThread, nullptr, listenToClient, connectionData);
+			pthread_mutex_unlock(&mutex);
+			//------------------------------------------------------------------------
 		}
 	}
 	closesocket(socketIDServer);
 	WSACleanup();
+}
+
+void Server::RemoveClient(const SOCKET &socket) {
+	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+	//---------------------------------------------------------------
+	pthread_mutex_lock(&mutex);
+	clients.erase(
+		std::remove_if(clients.begin(), clients.end(),
+			[socket](const ServerClient &s) { return s.ID == socket; }
+		),
+		clients.end()
+	);
+	pthread_mutex_unlock(&mutex);
+	//---------------------------------------------------------------
+}
+
+void Server::SendMessageToClients(const std::string &nick, const std::string &msg) {
+	//mutex!
+	//TO DO
+	//...
 }
