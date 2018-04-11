@@ -328,3 +328,12 @@ __pycache__/
 
 # OS X stuff
 .DS_Store
+
+# MY STUFF OUT
+*.pdb
+*.ilk
+*.idb
+*.db
+*.ipch
+*.tlog
+*.suo
