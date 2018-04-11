@@ -4,12 +4,24 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 
+#define HAVE_STRUCT_TIMESPEC
+#include <pthread.h>
+
 using namespace std;
 
 #define SERVER_PORT "12345"
 #define BUF_SIZE 4096
 
-// CLIENT
+// CLIENT ============================================================================
+
+void * listenToServer(void* argument) {
+	SOCKET fdSocket = *((SOCKET*)argument);
+	while (true) {
+
+	}
+	return nullptr;
+}
+
 int main(int argc, char *argv[])
 {
 	// Params (IP)
@@ -61,9 +73,7 @@ int main(int argc, char *argv[])
 		// Enter username
 		printf("Enter username: ");
 		gets_s(buf, _countof(buf));
-		std::string cmd = "cmd " + std::string(buf);
-		//buf = cmd.data();
-
+		
 		int length = strlen(buf) + 1;
 		int numBytesSend, totalSend = 0;
 		do {
@@ -71,12 +81,19 @@ int main(int argc, char *argv[])
 			totalSend += numBytesSend;
 		} while (totalSend < length);
 
-		while (true) {
-			// Send: Send data to connection
-			gets_s(buf, _countof(buf));
-			if (strcmp(buf, "quit") == 0)
-				printf("Quitting.\n");
+		//Connect user
+		//pthread_t listenThread;
+		//pthread_create(&listenThread, nullptr, listenToServer, &sockfd);
 
+		bool isConnected = true;
+		while (isConnected) {
+			// Send: Send data to connection
+			cout << ">";
+			gets_s(buf, _countof(buf));
+			if (strcmp(buf, "q") == 0) {
+				printf("Quitting.\n");
+				isConnected = false;
+			}
 			int length = strlen(buf) + 1;
 			int numBytesSend, totalSend = 0;
 			do {
@@ -84,10 +101,10 @@ int main(int argc, char *argv[])
 				totalSend += numBytesSend;
 			} while (totalSend < length);
 		}
-		// Close: End connection
-		closesocket(sockfd);
 	}
 
+	// Close: End connection
+	closesocket(sockfd);
 	WSACleanup();
 	return 0;
 }
