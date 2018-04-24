@@ -16,7 +16,7 @@ public:
 	void LoopServer();
 	sockaddr_in GetClient() const { return client; }
 	void RemoveClient(const SOCKET &socket);
-	void SendMessageToClients(const std::string &nick, const std::string &msg);
+	void SendMessageToClients(const std::string &msg);
 
 private:
 	struct ServerClient {

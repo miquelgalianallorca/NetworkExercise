@@ -36,22 +36,23 @@ void * listenToClient(void * argument) {
 		// Client Message
 		if (strcmp(buf, "q") == 0) {
 			cout << connectionData->nick << " left the room." << endl;
-			connectionData->server->SendMessageToClients(connectionData->nick, buf);
+			connectionData->server->SendMessageToClients(buf);
 			isClientListening = false;
 			break;
 		}
 		else {
 			char ipClient[INET_ADDRSTRLEN];
 			sockaddr_in client = connectionData->server->GetClient();
-			inet_ntop(AF_INET, &client.sin_addr, ipClient, sizeof(ipClient));
+			inet_ntop(AF_INET, &client.sin_addr, ipClient,
+                sizeof(ipClient));
 			//printf("Client:%s Port:%d\n", ipClient, ntohs(client.sin_port));
 			//printf("Message Length: %d\n", totalRecv);
 			//printf("Message: %s\n", buf);
 			cout << connectionData->nick << ":> " << buf << endl;
-			connectionData->server->SendMessageToClients(connectionData->nick, buf);
+            std::string msg = connectionData->nick + std::string(":> ") + buf;
+			connectionData->server->SendMessageToClients(msg);
 		}
 	}
-
 	
 	connectionData->server->RemoveClient(connectionData->socket);	
 	closesocket(connectionData->socket);
@@ -112,29 +113,39 @@ void Server::LoopServer() {
 		else {
 			// Client entered
 			int totalRecv = 0;
-			do {
-				int rec = recv(socketIDClient, buf + totalRecv, BUF_SIZE, 0);
-				if (rec == SOCKET_ERROR) {
-					printf("Lost connection to client.\n");
-				}
-				else {
-					totalRecv += rec;
-					printf("rec:%d | totalRecv: %d\n", rec, totalRecv);
-				}
-			} while (buf[totalRecv - 1] != '\0');
-			cout << buf << " entered the room." << endl;
+            bool couldConnect = false;
+            bool seguir = true;
+            while (seguir) {
+                int rec = recv(socketIDClient, buf + totalRecv, BUF_SIZE, 0);
+                if (rec == SOCKET_ERROR) {
+                    printf("Lost connection to client.\n");
+                    seguir = false;
+                }
+                else totalRecv += rec;
+                if (buf[totalRecv - 1] == '\0') {
+                    seguir = false;
+                    couldConnect = true;
+                }
+            }
+            // Client entered correctly
+            if (couldConnect) {
+                // Tell everyone
+                std::string msg = buf + std::string(" entered the room.");
+                cout << msg << endl;
+                SendMessageToClients(msg);
 
-			// Add client
-			pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-			//------------------------------------------------------------------------
-			pthread_mutex_lock(&mutex);
-			clients.push_back(ServerClient(buf, socketIDClient));
-			pthread_t listenThread;
-			ConnectionData *connectionData = new ConnectionData(this, socketIDClient, buf);
-			pthread_create(&listenThread, nullptr, listenToClient, connectionData);
-			pthread_mutex_unlock(&mutex);
-			//------------------------------------------------------------------------
-		}
+                // Add client
+                pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+                //------------------------------------------------------------------------
+                pthread_mutex_lock(&mutex);
+                clients.push_back(ServerClient(buf, socketIDClient));
+                pthread_t listenThread;
+                ConnectionData *connectionData = new ConnectionData(this, socketIDClient, buf);
+                pthread_create(&listenThread, nullptr, listenToClient, connectionData);
+                pthread_mutex_unlock(&mutex);
+                //------------------------------------------------------------------------
+            }
+        }
 	}
 	closesocket(socketIDServer);
 	WSACleanup();
@@ -154,8 +165,24 @@ void Server::RemoveClient(const SOCKET &socket) {
 	//---------------------------------------------------------------
 }
 
-void Server::SendMessageToClients(const std::string &nick, const std::string &msg) {
-	//mutex!
-	//TO DO
-	//...
+void Server::SendMessageToClients(const std::string &msg) {
+    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+    //---------------------------------------------------------------
+    pthread_mutex_lock(&mutex);
+    
+    // Send message
+    for (auto client : clients) {
+        if (client.ID != INVALID_SOCKET){
+            int length = strlen(msg.data()) + 1;
+            int numBytesSend, totalSend = 0;
+            do {
+                numBytesSend = send(client.ID, msg.data(),
+                    length - totalSend, 0);
+                totalSend += numBytesSend;
+            } while (totalSend < length);
+        }
+    }
+
+    pthread_mutex_unlock(&mutex);
+    //---------------------------------------------------------------
 }

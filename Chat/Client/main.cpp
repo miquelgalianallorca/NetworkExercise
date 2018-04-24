@@ -16,9 +16,28 @@ using namespace std;
 
 void * listenToServer(void* argument) {
 	SOCKET * fdSocket = (SOCKET*)argument;
-	while (true) {
+    bool isListening = true;
+	while (isListening) {
+        char buf[BUF_SIZE];
+        // Recv: Receive data from connection
+        int totalRecv = 0;
+        do {
+            int rec = recv(*fdSocket, buf + totalRecv, BUF_SIZE, 0);
+            if (rec == SOCKET_ERROR) {
+                cout << "Server error: connection lost." << endl;
+                isListening = false;
+                break;
+            }
+            else totalRecv += rec;
+        } while (buf[totalRecv - 1] != '\0');
 
+        if (!isListening) break;
+
+        // Server message
+        cout << buf << endl;
 	}
+
+    closesocket(*fdSocket);
 	delete fdSocket;
 	return nullptr;
 }
@@ -84,12 +103,11 @@ int main(int argc, char *argv[])
 
 		//Connect user
 		pthread_t listenThread;
-		pthread_create(&listenThread, nullptr, listenToServer, new SOCKET(sockfd));
+		pthread_create(&listenThread, nullptr, listenToServer, &sockfd);
 
 		bool isConnected = true;
 		while (isConnected) {
 			// Send: Send data to connection
-			cout << ">";
 			gets_s(buf, _countof(buf));
 			if (strcmp(buf, "q") == 0) {
 				printf("Quitting.\n");
