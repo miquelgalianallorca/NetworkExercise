@@ -38,7 +38,6 @@ void * listenToServer(void* argument) {
 	}
 
     closesocket(*fdSocket);
-	delete fdSocket;
 	return nullptr;
 }
 
